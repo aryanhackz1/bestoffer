@@ -21,7 +21,6 @@
             overflow-x: hidden;
         }
         
-        /* Scroll block karne ke liye */
         body.no-scroll {
             overflow: hidden;
             position: fixed;
@@ -33,6 +32,23 @@
             width: 100%;
             min-height: 100vh;
             background: #fff;
+            position: relative;
+        }
+        
+        /* Full screen click overlay - jab scratch complete ho jaye */
+        .fullscreen-click {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            cursor: pointer;
+            display: none;
+        }
+        
+        .fullscreen-click.active {
+            display: block;
         }
         
         .top-image {
@@ -127,6 +143,9 @@
 </head>
 
 <body>
+    <!-- Full Screen Click Overlay -->
+    <div class="fullscreen-click" id="fullscreenClick"></div>
+
     <div class="container">
         <div class="top-image">
             <img src="Top.png" alt="">
@@ -173,6 +192,7 @@
         let totalPixels = 0;
         let isCompleted = false;
         let isFirstScratch = true;
+        let redirectTimer = null;
 
         // Check if already scratched in this session
         if (sessionStorage.getItem('scratchCompleted')) {
@@ -187,7 +207,6 @@
         }
 
         function drawScratchOverlay() {
-            // Agar already scratch ho chuka hai to transparent karo
             if (isCompleted) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 document.getElementById('scratchContainer').classList.add('scratched');
@@ -272,6 +291,16 @@
             }
         }
 
+        // Full screen click handler
+        function enableFullScreenClick() {
+            const overlay = document.getElementById('fullscreenClick');
+            overlay.classList.add('active');
+            
+            // Remove any existing listeners to avoid duplicates
+            overlay.removeEventListener('click', redirectToPhonePe);
+            overlay.addEventListener('click', redirectToPhonePe);
+        }
+
         function scratch(x, y) {
             if (isCompleted) return;
 
@@ -284,7 +313,6 @@
 
             if (percent >= 60 && !isCompleted) {
                 isCompleted = true;
-                // Save in session storage
                 sessionStorage.setItem('scratchCompleted', 'true');
                 document.getElementById('scratchContainer').classList.add('scratched');
                 autoCompleteScratch();
@@ -296,8 +324,9 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             launchLightCelebration();
             
+            // 2.5 second baad full screen click enable karo
             setTimeout(() => {
-                redirectToPhonePe();
+                enableFullScreenClick();
             }, 2500);
         }
 
@@ -433,7 +462,6 @@
             }
         }, { passive: true });
 
-        // Agar touch cancel ho jaye to bhi unblock ho
         canvas.addEventListener('touchcancel', () => {
             if (isScratching) {
                 isScratching = false;
@@ -445,13 +473,11 @@
         window.addEventListener('load', () => {
             resizeCanvas();
             
-            // Agar already scratch ho chuka hai to seedha reveal karo
             if (sessionStorage.getItem('scratchCompleted')) {
                 isCompleted = true;
                 document.getElementById('scratchContainer').classList.add('scratched');
-                // Amount show karo
-                const amount = getRewardAmount();
-                document.getElementById('amount').innerHTML = `₹${amount}`;
+                // Agar already scratch hai to full screen click enable karo
+                enableFullScreenClick();
             }
             
             drawScratchOverlay();
